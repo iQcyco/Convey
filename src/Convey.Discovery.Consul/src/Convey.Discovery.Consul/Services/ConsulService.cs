@@ -18,11 +18,8 @@ namespace Convey.Discovery.Consul.Services
             _client = client;
         }
 
-        public Task<HttpResponseMessage> RegisterServiceAsync(ServiceRegistration registration)
-        {
-            var content = GetPayload(registration);
-            return _client.PutAsync(GetEndpoint("agent/service/register"), content);
-        }
+        public Task<HttpResponseMessage> RegisterServiceAsync(ServiceRegistration registration) =>
+            _client.PutAsync(GetEndpoint("agent/service/register"), GetPayload(registration));
 
         public Task<HttpResponseMessage> DeregisterServiceAsync(string id)
             => _client.PutAsync(GetEndpoint($"agent/service/deregister/{id}"), EmptyRequest);
@@ -41,11 +38,9 @@ namespace Convey.Discovery.Consul.Services
             return JsonSerializer.Deserialize<IDictionary<string, ServiceAgent>>(content);
         }
 
-        private static StringContent GetPayload(object request)
-        {
-            var payload = JsonSerializer.Serialize(request);
-            return new StringContent(payload, Encoding.UTF8, "application/json");
-        }
+        private static StringContent GetPayload(object request) =>
+            new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+
 
         private static string GetEndpoint(string endpoint) => $"{Version}/{endpoint}";
     }

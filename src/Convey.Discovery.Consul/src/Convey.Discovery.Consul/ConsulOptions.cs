@@ -25,12 +25,7 @@ namespace Convey.Discovery.Consul
             get => PreferIpAddress ? IpAddress : _hostName;
             set => _hostName = value;
         }
-        //public string Address { get; set; }
         public int Port { get; set; } = 80;
-        //public bool PingEnabled { get; set; }
-        //public string PingEndpoint { get; set; }
-        //public string PingInterval { get; set; }
-        //public string RemoveAfterInterval { get; set; }
         public List<string> Tags { get; set; }
         public IDictionary<string, string> Meta { get; set; }
         public bool EnableTagOverride { get; set; }
