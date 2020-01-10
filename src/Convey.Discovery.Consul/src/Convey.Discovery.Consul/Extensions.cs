@@ -22,7 +22,7 @@ namespace Convey.Discovery.Consul
             {
                 sectionName = SectionName;
             }
-            
+
             var consulOptions = builder.GetOptions<ConsulOptions>(sectionName);
             var httpClientOptions = builder.GetOptions<HttpClientOptions>(httpClientSectionName);
             return builder.AddConsul(consulOptions, httpClientOptions);
@@ -87,12 +87,6 @@ namespace Convey.Discovery.Consul
                 return null;
             }
 
-            if (string.IsNullOrWhiteSpace(options.Address))
-            {
-                throw new ArgumentException("Consul address can not be empty.",
-                    nameof(options.PingEndpoint));
-            }
-
             builder.Services.AddHttpClient<IConsulService, ConsulService>(c => c.BaseAddress = new Uri(options.Url));
             builder.Services.AddHostedService<ConsulHostedService>();
 
@@ -106,7 +100,7 @@ namespace Convey.Discovery.Consul
             {
                 Name = options.Service,
                 Id = $"{options.Service}:{serviceId}",
-                Address = options.Address,
+                Address = options.PreferIpAddress ? options.IpAddress : options.HostName,
                 Port = options.Port,
                 Tags = options.Tags,
                 Meta = options.Meta,
@@ -114,29 +108,28 @@ namespace Convey.Discovery.Consul
                 Connect = options.Connect?.Enabled == true ? new Connect() : null
             };
 
-            if (!options.PingEnabled)
+            if (!options.HealthCheck.Enabled)
             {
                 return registration;
             }
-            
-            var pingEndpoint = string.IsNullOrWhiteSpace(options.PingEndpoint) ? string.Empty :
-                options.PingEndpoint.StartsWith("/") ? options.PingEndpoint : $"/{options.PingEndpoint}";
+
+            var pingEndpoint = string.IsNullOrWhiteSpace(options.HealthCheck.HealthCheckPath) ? string.Empty :
+                options.HealthCheck.HealthCheckPath.StartsWith("/") ? options.HealthCheck.HealthCheckPath : $"/{options.HealthCheck.HealthCheckPath}";
             if (pingEndpoint.EndsWith("/"))
             {
                 pingEndpoint = pingEndpoint.Substring(0, pingEndpoint.Length - 1);
             }
 
-            var scheme = options.Address.StartsWith("http", StringComparison.InvariantCultureIgnoreCase)
-                ? string.Empty
-                : "http://";
             var check = new ServiceCheck
             {
-                Interval = ParseTime(options.PingInterval),
-                DeregisterCriticalServiceAfter = ParseTime(options.RemoveAfterInterval),
-                Http = $"{scheme}{options.Address}{(options.Port > 0 ? $":{options.Port}" : string.Empty)}" +
-                       $"{pingEndpoint}"
+                Interval = $"{options.HealthCheck.HealthCheckInterval}s",
+                DeregisterCriticalServiceAfter = $"{options.HealthCheck.HealthCheckCriticalTimeout}m",
+                Timeout = $"{options.HealthCheck.HealthCheckTimeout}s",
+                Http = $"{options.GetServiceAddress()}{pingEndpoint}",
+                TLSSkipVerify = options.HealthCheck.HealthCheckTlsSkipVerify,
+                Method = options.HealthCheck.HealthCheckMethod.ToUpper()
             };
-            registration.Checks = new[] {check};
+            registration.Checks = new[] { check };
 
             return registration;
         }
